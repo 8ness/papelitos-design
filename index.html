@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="<!-- figma:lang -->">
+  <head>
+    <!-- figma:head-start -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><!-- figma:title --></title>
+    <!-- figma:head-end -->
+    <!-- Fonts loaded as real <link> tags (instead of a CSS @import) so the
+         browser can discover and fetch them in parallel with the main
+         bundle, instead of waiting for index.css to load first. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700&family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&display=swap"
+    />
+
+    <!-- Browser UI tint on mobile (Android Chrome address bar, etc.) —
+         uses the brand's primary accent pink. -->
+    <meta name="theme-color" content="#FB6F92" />
+
+    <!-- Open Graph fields not covered by the Figma Make site.json schema
+         (which only emits og:title / og:description / og:image). These are
+         domain-independent, safe to hardcode. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_AR" />
+
+    <!-- TODO (Tamara): agregar acá <link rel="canonical" href="https://TU-DOMINIO-REAL/" />
+         y <meta property="og:url" content="https://TU-DOMINIO-REAL/" /> una vez que
+         tengas el dominio final de publicación. No lo completo con un dominio
+         inventado — un canonical/og:url incorrecto es peor que no tenerlo. -->
+  </head>
+  <body>
+    <!-- figma:body-start -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- figma:body-end -->
+  </body>
+</html>

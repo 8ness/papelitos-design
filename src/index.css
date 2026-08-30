@@ -1,0 +1,191 @@
+/* Fonts: loaded via <link> tags in index.html (parallel fetch) instead of
+   an @import here, which would force a serial request chain. */
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+@theme inline {
+  --font-hero: 'Playfair Display', Georgia, serif;
+  --font-display: 'Cormorant', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+
+  --color-blush-50: #fff0f4;
+  --color-blush-100: #FFE5EC;
+  --color-blush-200: #FFC2D1;
+  --color-blush-300: #FFB3C6;
+  --color-blush-400: #FF8FAB;
+  --color-blush-500: #FB6F92;
+  --color-blush-600: #e85a7e;
+  --color-cream: #fdf8f5;
+  --color-warm-dark: #2d1f1f;
+  --color-warm-mid: #6b4a52;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: var(--color-warm-dark);
+  overflow-x: hidden;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #FFC2D1; border-radius: 3px; }
+
+/* Wing flap */
+@keyframes wingFlap {
+  0%, 100% { transform: scaleX(1) rotate(0deg); }
+  25% { transform: scaleX(0.45) rotate(2deg); }
+  75% { transform: scaleX(0.55) rotate(-2deg); }
+}
+@keyframes wingFlapR {
+  0%, 100% { transform: scaleX(-1) rotate(0deg); }
+  25% { transform: scaleX(-0.45) rotate(-2deg); }
+  75% { transform: scaleX(-0.55) rotate(2deg); }
+}
+
+/* Fly-across paths — each butterfly follows a unique bezier arc */
+@keyframes flyPath1 {
+  0%   { transform: translate(-120px, 60vh) rotate(-10deg); opacity: 0; }
+  5%   { opacity: 1; }
+  100% { transform: translate(110vw, 25vh) rotate(8deg); opacity: 0; }
+}
+@keyframes flyPath2 {
+  0%   { transform: translate(110vw, 30vh) rotate(15deg); opacity: 0; }
+  5%   { opacity: 1; }
+  50%  { transform: translate(50vw, 15vh) rotate(-5deg); opacity: 1; }
+  100% { transform: translate(-120px, 55vh) rotate(-12deg); opacity: 0; }
+}
+@keyframes flyPath3 {
+  0%   { transform: translate(-120px, 20vh) rotate(5deg); opacity: 0; }
+  5%   { opacity: 1; }
+  40%  { transform: translate(40vw, 40vh) rotate(-8deg); opacity: 1; }
+  100% { transform: translate(110vw, 70vh) rotate(12deg); opacity: 0; }
+}
+@keyframes flyPath4 {
+  0%   { transform: translate(110vw, 80vh) rotate(-8deg); opacity: 0; }
+  5%   { opacity: 1; }
+  60%  { transform: translate(30vw, 60vh) rotate(10deg); opacity: 1; }
+  100% { transform: translate(-120px, 30vh) rotate(-5deg); opacity: 0; }
+}
+@keyframes flyPath5 {
+  0%   { transform: translate(50vw, -80px) rotate(20deg); opacity: 0; }
+  5%   { opacity: 1; }
+  50%  { transform: translate(70vw, 50vh) rotate(-10deg); opacity: 1; }
+  100% { transform: translate(30vw, 110vh) rotate(5deg); opacity: 0; }
+}
+
+/* Gentle hover for static decoratives */
+@keyframes floatFlower {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(6deg); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-float-1 { animation: floatFlower 8s ease-in-out infinite; }
+.animate-float-2 { animation: floatFlower 10s ease-in-out infinite 1s; }
+.animate-float-3 { animation: floatFlower 12s ease-in-out infinite 0.5s; }
+.animate-flower  { animation: floatFlower 9s ease-in-out infinite; }
+.animate-fade-up  { animation: fadeUp 0.9s ease both; }
+.animate-scale-in { animation: scaleIn 0.8s ease both; }
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Flying butterflies */
+.fly-1 { animation: flyPath1 18s linear infinite 0s; }
+.fly-2 { animation: flyPath2 24s linear infinite 4s; }
+.fly-3 { animation: flyPath3 20s linear infinite 9s; }
+.fly-4 { animation: flyPath4 28s linear infinite 2s; }
+.fly-5 { animation: flyPath5 22s linear infinite 14s; }
+
+.wing-l { animation: wingFlap 0.38s ease-in-out infinite; transform-origin: right center; }
+.wing-r { animation: wingFlapR 0.38s ease-in-out infinite 0.05s; transform-origin: left center; }
+
+/* Starfish micro-rotation */
+@keyframes starDrift {
+  0%, 100% { transform: rotate(-4deg) translateY(0px); }
+  50% { transform: rotate(4deg) translateY(-6px); }
+}
+.animate-star { animation: starDrift 8s ease-in-out infinite; }
+.animate-star-slow { animation: starDrift 12s ease-in-out infinite 2s; }
+
+/* Modal entrance/exit — backdrop fades in opacity, content fades with a very
+   subtle scale + translateY. Kept inside the 200–300ms range. */
+@keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalBackdropOut { from { opacity: 1; } to { opacity: 0; } }
+.animate-modal-backdrop-in { animation: modalBackdropIn 0.22s ease-out both; }
+.animate-modal-backdrop-out { animation: modalBackdropOut 0.2s ease-in both; }
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes modalOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.97) translateY(8px); }
+}
+.animate-modal-in { animation: modalIn 0.26s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-modal-out { animation: modalOut 0.2s ease-in both; }
+
+/* Hero display text entrance */
+@keyframes heroTitle {
+  from { opacity: 0; transform: translateY(40px) skewY(1deg); }
+  to   { opacity: 1; transform: translateY(0) skewY(0deg); }
+}
+.animate-hero-title { animation: heroTitle 1.1s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-hero-title-delay { animation: heroTitle 1.1s cubic-bezier(0.22,1,0.36,1) 0.18s both; }
+
+/* Respect the visitor's motion preference: stop every custom animation
+   (butterflies, starfish, wing flaps, entrance effects, modal) without
+   changing layout — elements simply land in their resting/final state. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-1,
+  .animate-float-2,
+  .animate-float-3,
+  .animate-flower,
+  .animate-fade-up,
+  .animate-scale-in,
+  .fly-1,
+  .fly-2,
+  .fly-3,
+  .fly-4,
+  .fly-5,
+  .wing-l,
+  .wing-r,
+  .animate-star,
+  .animate-star-slow,
+  .animate-modal-in,
+  .animate-modal-out,
+  .animate-modal-backdrop-in,
+  .animate-modal-backdrop-out,
+  .animate-hero-title,
+  .animate-hero-title-delay {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Reveal-on-scroll stagger: keep the fade functional (still triggered by
+     IntersectionObserver) but collapse the per-item delay so nothing feels
+     like a drawn-out sequence for people who'd rather not watch it play out. */
+  [style*="transition-delay"] {
+    transition-delay: 0ms !important;
+  }
+}

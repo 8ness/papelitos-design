@@ -1,0 +1,18 @@
+{
+  "title": "Papelitos Design — Community Manager y Creadora de Contenido",
+  "description": "Community Manager, creación de contenido e identidad visual para emprendedores y profesionales. Papelitos Design — Formosa, Argentina.",
+  "language": "es",
+  "robots": {
+    "index": true
+  },
+  "icons": {
+    "icon": "/favicon.jpg"
+  },
+  "openGraph": {
+    "image": "/og-papelitos-design.jpg"
+  },
+  "accessibility": {
+    "addBypassLinks": true,
+    "ignoreReducedMotion": false
+  }
+}
