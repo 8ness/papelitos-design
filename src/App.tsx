@@ -589,18 +589,46 @@ function Services() {
 }
 
 /* ─── PROJECT MODAL ─── */
-interface ProjectItem {
-  img: string;
-  /** Descriptive alt text for `img` — describes the real content, not the
-   *  raw title-with-bullet string (screen readers read "·" awkwardly). */
-  alt: string;
-  /** Optional real video for this project's case-study reel. When absent,
-   *  the modal falls back to the static image + play affordance. */
-  video?: string;
+/** Shared fields for any project card, regardless of whether it opens a
+ *  video or an image gallery. */
+type ProjectBase = {
   label: string;
   title: string;
   brand: string;
   services: string[];
+  /** Cover framing on the grid tile — only set when the default centered
+   *  crop doesn't work well for that particular photo. */
+  objectPosition?: "object-center" | "object-top";
+};
+
+/** A project with a real video: shows "Ver proceso" + Play on the grid tile,
+ *  opens a vertical Reel-style video in the modal. */
+type VideoProject = ProjectBase & {
+  type: "video";
+  cover: string;
+  coverAlt: string;
+  video: string;
+};
+
+/** A project with only images (no video yet): shows "Ver proyecto" + a
+ *  gallery icon on the grid tile, opens a carousel/lightbox in the modal.
+ *  `images` needs at least one entry — its first image is also the grid
+ *  tile's cover photo. */
+type GalleryProject = ProjectBase & {
+  type: "gallery";
+  images: { src: string; alt: string }[];
+};
+
+/** Adding a new project = adding one object (either shape) to the
+ *  `portfolioItems` array below. Nothing else needs to change — the grid,
+ *  the card, and the modal all render generically from this data. */
+type ProjectItem = VideoProject | GalleryProject;
+
+/** The cover photo shown on the grid tile, for either project type. */
+function projectCover(item: ProjectItem): { src: string; alt: string } {
+  return item.type === "video"
+    ? { src: item.cover, alt: item.coverAlt }
+    : { src: item.images[0].src, alt: item.images[0].alt };
 }
 
 /** The one real Instagram account — used everywhere, including inside each
@@ -618,6 +646,93 @@ const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent
 /** Focusable elements considered for the modal's Tab focus trap. */
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+/** Carousel/lightbox for gallery-type projects: big image, prev/next,
+ *  "1/3" counter, arrow-key navigation and touch swipe on mobile — all
+ *  without any external library. Controls are hidden entirely when there's
+ *  only one image (nothing to navigate to). */
+function ProjectGallery({
+  images,
+  label,
+  brand,
+}: {
+  images: { src: string; alt: string }[];
+  label: string;
+  brand: string;
+}) {
+  const [index, setIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const hasMultiple = images.length > 1;
+
+  const goPrev = () => setIndex(i => (i - 1 + images.length) % images.length);
+  const goNext = () => setIndex(i => (i + 1) % images.length);
+
+  useEffect(() => {
+    if (!hasMultiple) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "ArrowRight") goNext();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMultiple]);
+
+  return (
+    <div
+      className="relative w-full h-full touch-pan-y"
+      onTouchStart={hasMultiple ? (e) => { touchStartX.current = e.touches[0].clientX; } : undefined}
+      onTouchEnd={hasMultiple ? (e) => {
+        if (touchStartX.current === null) return;
+        const delta = e.changedTouches[0].clientX - touchStartX.current;
+        if (Math.abs(delta) > 40) (delta > 0 ? goPrev : goNext)();
+        touchStartX.current = null;
+      } : undefined}
+    >
+      <img
+        key={images[index].src}
+        src={images[index].src}
+        alt={images[index].alt}
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover"
+      />
+
+      {hasMultiple && (
+        <>
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label="Imagen anterior"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label="Imagen siguiente"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <div className="absolute top-3 right-3 bg-black/40 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+            {index + 1}/{images.length}
+          </div>
+        </>
+      )}
+
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent pt-6 px-4 pb-3 pointer-events-none">
+        <p className="text-[#FFC2D1] text-[10px] tracking-widest uppercase mb-0.5">{label}</p>
+        <p style={{ fontFamily: "var(--font-display)" }} className="text-white text-lg leading-tight">{brand}</p>
+      </div>
+    </div>
+  );
+}
 
 function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -703,8 +818,8 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
 
   return (
     <div
-      className={`fixed inset-0 z-[80] overflow-y-auto p-4 md:p-8 ${closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"}`}
-      style={{ background: "rgba(45,31,31,0.72)", backdropFilter: "blur(6px)", display: "flex" }}
+      className={`fixed top-0 left-0 right-0 h-dvh z-[80] flex items-center justify-center p-4 md:p-8 ${closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"}`}
+      style={{ background: "rgba(45,31,31,0.72)", backdropFilter: "blur(6px)" }}
       onClick={requestClose}
     >
       <div
@@ -712,12 +827,17 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`relative w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl ${closing ? "animate-modal-out" : "animate-modal-in"}`}
-        style={{ border: "2px solid #FFC2D1", margin: "auto" }}
+        // The card scrolls internally (not the backdrop) and is capped to the
+        // *dynamic* viewport height, so mobile browser chrome (address bar
+        // showing/hiding) can never cut off content or push the close button
+        // out of reach — the fix for the mobile centering/scroll bug.
+        className={`relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] md:max-h-[calc(100dvh-4rem)] ${closing ? "animate-modal-out" : "animate-modal-in"}`}
+        style={{ border: "2px solid #FFC2D1" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal header strip */}
-        <div className="bg-[#FFE5EC] px-5 py-3 flex items-center justify-between">
+        {/* Modal header strip — sticky so the close button stays reachable
+            even while scrolled down inside a tall card. */}
+        <div className="sticky top-0 z-10 bg-[#FFE5EC] px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Starfish className="w-5 h-5 opacity-70" color="#FF8FAB" />
             <span className="text-[#FB6F92] text-xs font-medium tracking-widest uppercase">Papelitos Design</span>
@@ -732,14 +852,15 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
           </button>
         </div>
 
-        {/* Video area — vertical reel format */}
-        <div className="relative bg-[#2d1f1f]" style={{ aspectRatio: "9/16", maxHeight: "55vh" }}>
-          {project.video ? (
+        {/* Media area — vertical reel format. Video projects play their
+            case-study video; gallery projects show the image carousel. */}
+        <div className="relative bg-[#2d1f1f]" style={{ aspectRatio: "9/16", maxHeight: "55dvh" }}>
+          {project.type === "video" ? (
             <video
               ref={videoRef}
               key={project.video}
               src={project.video}
-              poster={project.img}
+              poster={project.cover}
               className="w-full h-full object-cover"
               controls
               playsInline
@@ -747,34 +868,7 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
               preload="metadata"
             />
           ) : (
-            <>
-              {/* No video uploaded yet for this project — image + play affordance */}
-              <img
-                src={project.img}
-                alt={project.alt}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover object-top opacity-80"
-              />
-              <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
-                <div className="self-end">
-                  <span className="bg-black/40 text-white text-[10px] tracking-widest uppercase px-2 py-0.5 rounded-full">
-                    Reel · Case Study
-                  </span>
-                </div>
-                <div className="self-center">
-                  <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm border border-white/40 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 -mx-4 px-4 pb-1">
-                  <p className="text-[#FFC2D1] text-[10px] tracking-widest uppercase mb-0.5">{project.label}</p>
-                  <p style={{ fontFamily: "var(--font-display)" }} className="text-white text-lg leading-tight">{project.brand}</p>
-                </div>
-              </div>
-            </>
+            <ProjectGallery images={project.images} label={project.label} brand={project.brand} />
           )}
         </div>
 
@@ -811,8 +905,9 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
 /* ─── PORTFOLIO ─── */
 const portfolioItems: ProjectItem[] = [
   {
-    img: portfolioBranding,
-    alt: "Trabajo de identidad visual para Los Brodis",
+    type: "video",
+    cover: portfolioBranding,
+    coverAlt: "Trabajo de identidad visual para Los Brodis",
     video: losBrodisVideo,
     label: "Branding",
     title: "Los Brodis · Identidad visual",
@@ -820,19 +915,27 @@ const portfolioItems: ProjectItem[] = [
     services: ["Identidad visual", "Diseño gráfico", "Branding"],
   },
   {
-    img: portfolioFeed,
-    alt: "Contenido de Instagram para SONKO Accesorios",
-    // TODO: falta el archivo real de SONKO Accesorios. Cuando llegue:
-    // 1) import sonkoAccesoriosVideo from "@/assets/videos/sonko-accesorios.mp4"; (arriba)
-    // 2) agregar `video: sonkoAccesoriosVideo` acá.
-    label: "Feed de Instagram",
-    title: "SONKO Accesorios · Contenido",
+    // TODO: cuando Tamara entregue el video real de SONKO Accesorios,
+    // convertir este proyecto a video (como Los Brodis, arriba): importar
+    // el .mp4 al inicio del archivo, agregar `cover`/`coverAlt`/`video`,
+    // cambiar `type` a "video" y borrar `images`. Hasta entonces se
+    // comporta como galería con las 2 fotos reales que ya existen (antes
+    // vivían como 2 tarjetas separadas del mismo cliente; ahora son un
+    // solo proyecto con carrusel, sin inventar ningún asset nuevo).
+    type: "gallery",
+    images: [
+      { src: portfolioFeed, alt: "Contenido de Instagram para SONKO Accesorios" },
+      { src: portfolioSocial, alt: "Community management y redes sociales para SONKO Accesorios" },
+    ],
+    label: "Social media",
+    title: "SONKO Accesorios · Contenido y redes",
     brand: "SONKO Accesorios",
     services: ["Community Manager", "Creación de contenido", "Social Media"],
   },
   {
-    img: portfolioDiseno,
-    alt: "Contenido para Instagram de Psicóloga Méndez",
+    type: "video",
+    cover: portfolioDiseno,
+    coverAlt: "Contenido para Instagram de Psicóloga Méndez",
     video: psicologaMendezVideo,
     label: "Diseño",
     title: "Psicologa Mendez · Piezas visuales",
@@ -840,22 +943,24 @@ const portfolioItems: ProjectItem[] = [
     services: ["Diseño de contenido", "Social Media", "Identidad visual"],
   },
   {
-    img: portfolioSocial,
-    alt: "Community management y redes sociales para SONKO Accesorios",
-    label: "Social media",
-    title: "SONKO · Community management",
-    brand: "SONKO Accesorios",
-    services: ["Social Media", "Creación de contenido", "Community Manager"],
-  },
-  {
-    img: portfolioExtra,
-    alt: "Contenido de redes sociales para Leilas Jewelry",
+    type: "gallery",
+    images: [
+      { src: portfolioExtra, alt: "Contenido de redes sociales para Leilas Jewelry" },
+    ],
     label: "Contenido",
     title: "Leilas Jewelry · Social media",
     brand: "Leilas Jewelry",
     services: ["Community Manager", "Creación de contenido"],
+    objectPosition: "object-top",
   },
 ];
+
+/** Literal Tailwind classes cycled by index to build the mosaic — kept as
+ *  real strings here so the JIT compiler generates them, even though
+ *  they're picked at runtime via array indexing below. This is what lets
+ *  `Portfolio` render generically: adding a project only means adding an
+ *  object to `portfolioItems` above, no per-tile JSX to hand-place. */
+const CARD_ROTATIONS = ["-rotate-[0.5deg]", "rotate-[0.5deg]", "-rotate-[0.3deg]", "rotate-[0.3deg]"];
 
 function Portfolio() {
   const [active, setActive] = useState<ProjectItem | null>(null);
@@ -881,24 +986,22 @@ function Portfolio() {
           </p>
         </div>
 
-        {/* Tight editorial mosaic */}
+        {/* Tight editorial mosaic — every 3rd tile (index 0, 3, 6…) goes
+            wide, the rest stay square; rotation cycles through
+            CARD_ROTATIONS. Both derived purely from index/count, so this
+            grid never needs to be hand-edited when a project is added. */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-
-          {/* Item 0 — Branding, wide */}
-          <ProjectCard item={portfolioItems[0]} onClick={() => setActive(portfolioItems[0])} className="col-span-2 aspect-video" />
-
-          {/* Item 1 — Feed */}
-          <ProjectCard item={portfolioItems[1]} onClick={() => setActive(portfolioItems[1])} className="aspect-square" rotate="-rotate-[0.5deg]" />
-
-          {/* Item 2 — Diseño */}
-          <ProjectCard item={portfolioItems[2]} onClick={() => setActive(portfolioItems[2])} className="aspect-square rotate-[0.5deg]" />
-
-          {/* Item 3 — Social media */}
-          <ProjectCard item={portfolioItems[3]} onClick={() => setActive(portfolioItems[3])} className="aspect-square -rotate-[0.5deg]" />
-
-          {/* Item 4 — Extra, wide */}
-          <ProjectCard item={portfolioItems[4]} onClick={() => setActive(portfolioItems[4])} className="col-span-2 aspect-video rotate-[0.3deg]" objectPosition="object-top" />
-
+          {portfolioItems.map((item, i) => (
+            <ProjectCard
+              key={item.title}
+              item={item}
+              cover={projectCover(item)}
+              onClick={() => setActive(item)}
+              className={i % 3 === 0 ? "col-span-2 aspect-video" : "aspect-square"}
+              rotate={CARD_ROTATIONS[i % CARD_ROTATIONS.length]}
+              objectPosition={item.objectPosition === "object-top" ? "object-top" : "object-center"}
+            />
+          ))}
         </div>
       </div>
     </Section>
@@ -907,17 +1010,20 @@ function Portfolio() {
 
 function ProjectCard({
   item,
+  cover,
   onClick,
   className = "",
   rotate = "",
   objectPosition = "object-center",
 }: {
   item: ProjectItem;
+  cover: { src: string; alt: string };
   onClick: () => void;
   className?: string;
   rotate?: string;
   objectPosition?: string;
 }) {
+  const isVideo = item.type === "video";
   return (
     <button
       onClick={onClick}
@@ -926,8 +1032,8 @@ function ProjectCard({
       aria-label={`Ver proyecto: ${item.title}`}
     >
       <img
-        src={item.img}
-        alt={item.alt}
+        src={cover.src}
+        alt={cover.alt}
         loading="lazy"
         decoding="async"
         className={`w-full h-full object-cover ${objectPosition} transition-transform duration-300 group-hover:scale-[1.02]`}
@@ -937,11 +1043,27 @@ function ProjectCard({
         <span className="text-[#FFC2D1] text-[9px] tracking-widest uppercase">{item.label}</span>
         <p style={{ fontFamily: "var(--font-display)" }} className="text-white text-sm leading-tight">{item.brand}</p>
       </div>
-      {/* "Ver proyecto" badge — appears on hover */}
+      {/* Hover badge — differs by project type: video → Play + "Ver proceso";
+          gallery → grid icon + "Ver proyecto" (never shows Play without a
+          real video). */}
       <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
         <span className="bg-white/90 backdrop-blur-sm text-[#FB6F92] text-[10px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1 shadow">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-          Ver proyecto
+          {isVideo ? (
+            <>
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              Ver proceso
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                <rect x="14" y="3" width="7" height="7" rx="1" strokeWidth="2" />
+                <rect x="3" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+                <rect x="14" y="14" width="7" height="7" rx="1" strokeWidth="2" />
+              </svg>
+              Ver proyecto
+            </>
+          )}
         </span>
       </div>
     </button>

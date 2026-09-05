@@ -1,11 +1,25 @@
 <!doctype html>
-<html lang="<!-- figma:lang -->">
+<html lang="es">
   <head>
     <!-- figma:head-start -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><!-- figma:title --></title>
+    <title>Papelitos Design — Community Manager y Creadora de Contenido</title>
     <!-- figma:head-end -->
+
+    <!-- Hardcoded explicitly (not relying on the Figma Make site.json →
+         transformIndexHtml pipeline) so lang/title/description are correct
+         even in a plain `vite build` on Vercel or any other host that just
+         runs this config as-is. og:description / og:title / favicon /
+         robots keep coming from .figma/make/site.json via vite.config.ts —
+         only the plain <meta name="description"> below is now static, and
+         the matching auto-injection was removed from vite.config.ts to
+         avoid a duplicate tag. -->
+    <meta
+      name="description"
+      content="Community Manager, creación de contenido e identidad visual para emprendedores y profesionales. Papelitos Design — Formosa, Argentina."
+    />
+
     <!-- Fonts loaded as real <link> tags (instead of a CSS @import) so the
          browser can discover and fetch them in parallel with the main
          bundle, instead of waiting for index.css to load first. -->

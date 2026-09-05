@@ -124,9 +124,10 @@ function figmaSiteConfiguration(config: FigmaSiteConfiguration): Plugin {
         result = replaceHtmlCommentSlot(result, 'figma:body-end', bodyEnd)
 
         const tags: HtmlTagDescriptor[] = []
-        if (description) {
-          tags.push({ tag: 'meta', attrs: { name: 'description', content: description }, injectTo: 'head' })
-        }
+        // NOTE: the plain <meta name="description"> tag is no longer injected
+        // here — it's hardcoded directly in index.html so it's correct even
+        // outside this build pipeline. og:description below is unaffected
+        // and still comes from site.json's `description` field.
         if (config.robots?.index === false) {
           tags.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' })
         }
