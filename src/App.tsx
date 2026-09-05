@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 
-import logoImg from "@/imports/5b54db53-be81-4449-8aaf-16b05604fc6b.jpg";
-import aboutMain from "@/imports/6f7dfad5-4a2f-4a93-843e-eab1b798701b.jpg";
-import aboutSelfie from "@/imports/dd81f06a-731d-4789-8f57-fac664c737aa.jpg";
-import aboutKid from "@/imports/59f2f88d-49d6-4ccc-8830-5086dfa51ce5.jpg";
-import portfolioBranding from "@/imports/a6dd9a3a-4ba1-4a75-8942-1c4d6d77afe0.jpg";
-import portfolioFeed from "@/imports/04c971b0-1789-4c77-b206-313865699e86.jpg";
-import portfolioDiseno from "@/imports/263ade94-7475-4571-bf68-de43e117d23c.jpg";
-import portfolioSocial from "@/imports/45739428-b3ec-48e3-81e2-6f4d3435fde7.jpg";
-import portfolioExtra from "@/imports/ab1d444a-edc3-4119-802f-efe129cda766.jpg";
+// Imágenes movidas a public/images/ y referenciadas por ruta pública
+// (en vez de import de módulo) para eliminar los problemas de carga
+// en Vercel causados por el pipeline de assets de Vite/Figma Make.
+const logoImg = "/images/logo-papelitos.jpg";
+const aboutMain = "/images/tamara-hero.jpg";
+const aboutSelfie = "/images/tamara-selfie.jpg";
+const aboutKid = "/images/tamara-nina.jpg";
+const portfolioBranding = "/images/los-brodis.jpg";
+const portfolioFeed = "/images/sonko-1.jpg";
+const portfolioDiseno = "/images/psicologa-mendez.jpg";
+const portfolioSocial = "/images/sonko-2.jpg";
+const portfolioExtra = "/images/leilas-jewelry.jpg";
 
 import losBrodisVideo from "@/assets/videos/los-brodis.mp4";
 import psicologaMendezVideo from "@/assets/videos/psicologa-mendez.mp4";
