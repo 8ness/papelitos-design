@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 // Imágenes movidas a public/images/ y referenciadas por ruta pública
 // (en vez de import de módulo) para eliminar los problemas de carga
@@ -224,7 +225,7 @@ const navLinks = ["Sobre mí", "Servicios", "Trabajos", "Proceso", "Contacto"];
 const navHref = (item: string) =>
   `#${item.toLowerCase().replace(" ", "-").normalize("NFD").replace(/[̀-ͯ]/g, "")}`;
 
-function Nav() {
+function Nav({ hidden = false }: { hidden?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -233,9 +234,11 @@ function Nav() {
       // Cuando hay un modal de proyecto abierto, el scroll de <body> queda
       // bloqueado con `position: fixed`, lo que hace que window.scrollY
       // vuelva a 0 aunque la página siga "scrolleada" visualmente. Sin este
-      // chequeo, el nav se creía arriba del todo y se volvía transparente,
-      // superponiéndose al contenido de atrás. Mientras el scroll esté
-      // bloqueado, no tocamos `scrolled` — se mantiene como estaba.
+      // chequeo, el nav se creería arriba del todo y se volvería transparente.
+      // (El nav ahora además se oculta por completo vía `hidden` mientras el
+      // modal está abierto — ver más abajo — pero este guard se deja como
+      // defensa extra para el instante entre que se abre el modal y se
+      // aplica esa clase.)
       if (document.body.style.position === "fixed") return;
       setScrolled(window.scrollY > 30);
     };
@@ -252,7 +255,12 @@ function Nav() {
   }, [mobileOpen]);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled || mobileOpen ? "bg-white/80 backdrop-blur-md shadow-sm" : "bg-transparent"}`}>
+    <nav
+      // Oculto por completo (invisible + fuera del orden de tabulación)
+      // mientras hay un ProjectModal abierto — no debe quedar visible ni
+      // ser alcanzable con Tab por detrás del overlay del modal.
+      aria-hidden={hidden}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${hidden ? "invisible" : "visible"} ${scrolled || mobileOpen ? "bg-white/80 backdrop-blur-md shadow-sm" : "bg-transparent"}`}>
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         <a href="#hero" className="flex items-center gap-2.5">
           <img
@@ -833,100 +841,122 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
     };
   }, [project]);
 
-  return (
+  // Rendered with createPortal directly under <body> — NOT inside the
+  // Portfolio section, and not inside any parent that could animate,
+  // transform, or otherwise create its own stacking/containing context
+  // (e.g. the scroll-linked parallax transforms in Hero, or any
+  // `overflow-hidden` ancestor section). Mounting outside all of that is
+  // what guarantees `position: fixed` on the overlay below is *always*
+  // resolved against the real viewport, no matter which card in the grid
+  // (first, middle, or last) triggered it or how far the page is scrolled.
+  return createPortal(
     <div
-      className={`fixed top-0 left-0 right-0 h-dvh z-[80] flex items-center justify-center p-4 md:p-8 ${closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"}`}
-      style={{ background: "rgba(45,31,31,0.9)", backdropFilter: "blur(6px)" }}
+      // The OVERLAY itself is the scroll container (not the card, and not
+      // the page behind it). `inset-0` + `min-h-[100dvh]` make it cover the
+      // full viewport from y=0 regardless of scroll position, and
+      // `overflow-y-auto` means a modal taller than the screen scrolls here
+      // — the close button and the rest of the card are always reachable.
+      className={`fixed inset-0 z-[9999] min-h-[100dvh] w-full overflow-y-auto overscroll-contain bg-black/90 ${closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"}`}
+      style={{ backdropFilter: "blur(6px)" }}
       onClick={requestClose}
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        // The card scrolls internally (not the backdrop) and is capped to the
-        // *dynamic* viewport height, so mobile browser chrome (address bar
-        // showing/hiding) can never cut off content or push the close button
-        // out of reach — the fix for the mobile centering/scroll bug.
-        className={`relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] md:max-h-[calc(100dvh-4rem)] ${closing ? "animate-modal-out" : "animate-modal-in"}`}
-        style={{ border: "2px solid #FFC2D1" }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Modal header strip — sticky so the close button stays reachable
-            even while scrolled down inside a tall card. */}
-        <div className="sticky top-0 z-10 bg-[#FFE5EC] px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Starfish className="w-5 h-5 opacity-70" color="#FF8FAB" />
-            <span className="text-[#FB6F92] text-xs font-medium tracking-widest uppercase">Papelitos Design</span>
-          </div>
-          <button
-            ref={closeBtnRef}
-            onClick={requestClose}
-            aria-label="Cerrar"
-            className="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center text-[#FB6F92] hover:bg-white transition-colors text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FB6F92] focus-visible:ring-offset-1"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Media area — vertical reel format. Video projects play their
-            case-study video; gallery projects show the image carousel.
-            Width is resolved explicitly as min(full card width, the width
-            implied by the 55dvh height cap) BEFORE aspect-ratio is applied,
-            instead of stretching to 100% and letting aspect-ratio fight
-            with max-height on a plain <div> — that combination resolves
-            inconsistently across browsers and could leave the box wider
-            than its content, showing blank space instead of the dark
-            background. Resolving width first makes the box's own size
-            unambiguous in every browser. */}
+      {/* Inner layout row: min-h-full keeps it at least one viewport tall so
+          a short card still centers, while items-start (instead of
+          items-center) means a card taller than the viewport starts flush
+          at the top instead of being centered-and-clipped. The card itself
+          gets `my-auto`, so the classic flex cross-axis auto-margin trick
+          centers it vertically *only when it fits* — when it's taller than
+          available space, the auto margins collapse to 0 and it simply
+          starts at the top and scrolls naturally with the overlay. */}
+      <div className="min-h-full w-full flex items-start justify-center p-4 md:p-8">
         <div
-          className="relative bg-[#2d1f1f] mx-auto"
-          style={{ width: "min(100%, calc(55dvh * 9 / 16))", aspectRatio: "9/16", maxHeight: "55dvh" }}
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className={`relative w-full max-w-sm my-auto bg-white rounded-3xl shadow-2xl ${closing ? "animate-modal-out" : "animate-modal-in"}`}
+          style={{ border: "2px solid #FFC2D1" }}
+          onClick={e => e.stopPropagation()}
         >
-          {project.type === "video" ? (
-            <video
-              ref={videoRef}
-              key={project.video}
-              src={project.video}
-              poster={project.cover}
-              className="w-full h-full object-cover"
-              controls
-              playsInline
-              autoPlay
-              preload="metadata"
-            />
-          ) : (
-            <ProjectGallery images={project.images} label={project.label} brand={project.brand} />
-          )}
-        </div>
-
-        {/* Info panel */}
-        <div className="px-5 py-4">
-          <p id={titleId} style={{ fontFamily: "var(--font-display)" }} className="text-[#2d1f1f] text-xl mb-1">{project.title}</p>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {project.services.map(s => (
-              <span key={s} className="bg-[#FFE5EC] text-[#FB6F92] text-[10px] font-medium px-2.5 py-1 rounded-full">
-                {s}
-              </span>
-            ))}
+          {/* Modal header strip — sticky so the close button stays reachable
+              even while scrolled down inside a tall card (sticky resolves
+              against the overlay above, which is the actual scroll
+              container now). */}
+          <div className="sticky top-0 z-10 bg-[#FFE5EC] px-5 py-3 flex items-center justify-between rounded-t-3xl">
+            <div className="flex items-center gap-2">
+              <Starfish className="w-5 h-5 opacity-70" color="#FF8FAB" />
+              <span className="text-[#FB6F92] text-xs font-medium tracking-widest uppercase">Papelitos Design</span>
+            </div>
+            <button
+              ref={closeBtnRef}
+              onClick={requestClose}
+              aria-label="Cerrar"
+              className="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center text-[#FB6F92] hover:bg-white transition-colors text-lg leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FB6F92] focus-visible:ring-offset-1"
+            >
+              ×
+            </button>
           </div>
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-[#FB6F92] text-xs font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FB6F92] focus-visible:ring-offset-1 rounded"
-          >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-            </svg>
-            Ver más en Instagram ↗
-          </a>
-        </div>
 
-        {/* Scrapbook footer accent */}
-        <div className="h-1 bg-gradient-to-r from-[#FFE5EC] via-[#FB6F92] to-[#FFE5EC]" />
+          {/* Media area — vertical reel format. Video projects play their
+              case-study video; gallery projects show the image carousel.
+              Width is resolved explicitly as min(full card width, the width
+              implied by the 55dvh height cap) BEFORE aspect-ratio is
+              applied, instead of stretching to 100% and letting
+              aspect-ratio fight with max-height on a plain <div> — that
+              combination resolves inconsistently across browsers and could
+              leave the box wider than its content, showing blank space
+              instead of the dark background. Resolving width first makes
+              the box's own size unambiguous in every browser. */}
+          <div
+            className="relative bg-[#2d1f1f] mx-auto"
+            style={{ width: "min(100%, calc(55dvh * 9 / 16))", aspectRatio: "9/16", maxHeight: "55dvh" }}
+          >
+            {project.type === "video" ? (
+              <video
+                ref={videoRef}
+                key={project.video}
+                src={project.video}
+                poster={project.cover}
+                className="w-full h-full object-cover"
+                controls
+                playsInline
+                autoPlay
+                preload="metadata"
+              />
+            ) : (
+              <ProjectGallery images={project.images} label={project.label} brand={project.brand} />
+            )}
+          </div>
+
+          {/* Info panel */}
+          <div className="px-5 py-4">
+            <p id={titleId} style={{ fontFamily: "var(--font-display)" }} className="text-[#2d1f1f] text-xl mb-1">{project.title}</p>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {project.services.map(s => (
+                <span key={s} className="bg-[#FFE5EC] text-[#FB6F92] text-[10px] font-medium px-2.5 py-1 rounded-full">
+                  {s}
+                </span>
+              ))}
+            </div>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[#FB6F92] text-xs font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FB6F92] focus-visible:ring-offset-1 rounded"
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+              </svg>
+              Ver más en Instagram ↗
+            </a>
+          </div>
+
+          {/* Scrapbook footer accent */}
+          <div className="h-1 bg-gradient-to-r from-[#FFE5EC] via-[#FB6F92] to-[#FFE5EC] rounded-b-3xl" />
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -990,9 +1020,13 @@ const portfolioItems: ProjectItem[] = [
  *  object to `portfolioItems` above, no per-tile JSX to hand-place. */
 const CARD_ROTATIONS = ["-rotate-[0.5deg]", "rotate-[0.5deg]", "-rotate-[0.3deg]", "rotate-[0.3deg]"];
 
-function Portfolio() {
-  const [active, setActive] = useState<ProjectItem | null>(null);
-
+function Portfolio({
+  active,
+  setActive,
+}: {
+  active: ProjectItem | null;
+  setActive: (item: ProjectItem | null) => void;
+}) {
   return (
     <Section id="trabajos" className="relative py-16 bg-white overflow-hidden">
       <Starfish className="absolute -top-10 right-10 w-24 opacity-12 animate-star" color="#FFB3C6" />
@@ -1296,15 +1330,20 @@ function Footer() {
 
 /* ─── ROOT ─── */
 export default function App() {
+  // Levantado hasta acá (en vez de vivir dentro de Portfolio) para que Nav
+  // pueda ocultarse por completo mientras hay un proyecto abierto — ver
+  // el prop `hidden` de <Nav>.
+  const [activeProject, setActiveProject] = useState<ProjectItem | null>(null);
+
   return (
     <div className="min-h-screen">
       <FlyingButterfliesLayer />
-      <Nav />
+      <Nav hidden={activeProject !== null} />
       <main>
         <Hero />
         <About />
         <Services />
-        <Portfolio />
+        <Portfolio active={activeProject} setActive={setActiveProject} />
         <Process />
         <Contact />
       </main>
