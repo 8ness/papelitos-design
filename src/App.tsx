@@ -229,7 +229,16 @@ function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 30);
+    const fn = () => {
+      // Cuando hay un modal de proyecto abierto, el scroll de <body> queda
+      // bloqueado con `position: fixed`, lo que hace que window.scrollY
+      // vuelva a 0 aunque la página siga "scrolleada" visualmente. Sin este
+      // chequeo, el nav se creía arriba del todo y se volvía transparente,
+      // superponiéndose al contenido de atrás. Mientras el scroll esté
+      // bloqueado, no tocamos `scrolled` — se mantiene como estaba.
+      if (document.body.style.position === "fixed") return;
+      setScrolled(window.scrollY > 30);
+    };
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
@@ -696,9 +705,14 @@ function ProjectGallery({
         key={images[index].src}
         src={images[index].src}
         alt={images[index].alt}
-        loading="lazy"
+        loading="eager"
         decoding="async"
-        className="w-full h-full object-cover"
+        // object-contain (no object-cover): estas fotos son capturas de
+        // Instagram con su propio formato (no todas son 9:16), así que
+        // "cover" recortaba contenido. "contain" muestra la imagen
+        // completa dentro del cuadro, con el fondo oscuro del contenedor
+        // rellenando los bordes sobrantes en vez de recortar.
+        className="w-full h-full object-contain"
       />
 
       {hasMultiple && (
@@ -822,7 +836,7 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
   return (
     <div
       className={`fixed top-0 left-0 right-0 h-dvh z-[80] flex items-center justify-center p-4 md:p-8 ${closing ? "animate-modal-backdrop-out" : "animate-modal-backdrop-in"}`}
-      style={{ background: "rgba(45,31,31,0.72)", backdropFilter: "blur(6px)" }}
+      style={{ background: "rgba(45,31,31,0.9)", backdropFilter: "blur(6px)" }}
       onClick={requestClose}
     >
       <div
@@ -856,8 +870,19 @@ function ProjectModal({ project, onClose }: { project: ProjectItem; onClose: () 
         </div>
 
         {/* Media area — vertical reel format. Video projects play their
-            case-study video; gallery projects show the image carousel. */}
-        <div className="relative bg-[#2d1f1f]" style={{ aspectRatio: "9/16", maxHeight: "55dvh" }}>
+            case-study video; gallery projects show the image carousel.
+            Width is resolved explicitly as min(full card width, the width
+            implied by the 55dvh height cap) BEFORE aspect-ratio is applied,
+            instead of stretching to 100% and letting aspect-ratio fight
+            with max-height on a plain <div> — that combination resolves
+            inconsistently across browsers and could leave the box wider
+            than its content, showing blank space instead of the dark
+            background. Resolving width first makes the box's own size
+            unambiguous in every browser. */}
+        <div
+          className="relative bg-[#2d1f1f] mx-auto"
+          style={{ width: "min(100%, calc(55dvh * 9 / 16))", aspectRatio: "9/16", maxHeight: "55dvh" }}
+        >
           {project.type === "video" ? (
             <video
               ref={videoRef}
